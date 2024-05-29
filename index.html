@@ -18,11 +18,11 @@
         color: #333;
       }
       .container {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      gap: 20px;
-    }
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 20px;
+      }
       form {
         display: flex;
         flex-direction: column;
@@ -87,29 +87,25 @@
     </style>
   </head>
   <body>
-    <h1 style="align-self: center;">Алгоритм Краскала</h1>
+    <h1 style="align-self: center">Алгоритм Краскала</h1>
     <div class="container">
       <form id="graphForm">
         <label for="vertex">Название вершины:</label>
         <input type="text" id="vertex" name="vertex" />
         <button type="button" onclick="addVertex()">Добавить вершину</button>
-        <hr>
+        <hr />
         <label>Начальная вершина:</label>
         <input type="text" id="startVertex" name="startVertex" required />
         <label>Конечная вершина:</label>
         <input type="text" id="endVertex" name="endVertex" required />
         <label>Вес:</label>
         <input type="number" id="weight" name="weight" required />
-        <button type="button" onclick="addEdge()"> 
-          Добавить ребро 
-        </button>
-        <hr>
+        <button type="button" onclick="addEdge()">Добавить ребро</button>
+        <hr />
         <button type="button" onclick="applyKruskal()">
           Применить алгоритм
         </button>
-        <button type="button" onclick="drawGraph()">
-          Показать граф
-        </button>
+        <button type="button" onclick="drawGraph()">Показать граф</button>
       </form>
 
       <div id="graph"></div>
@@ -135,11 +131,11 @@
       const width = 600;
       const height = 500;
 
-      function getRandomPosition(dimension) {
-        return Math.random() * dimension;
+      function getRandomPosition(dimension, offset = 0.2) {
+        return dimension * (offset + Math.random() * (1 - 2 * offset));
       }
 
-      function addVertex() {
+      async function addVertex() {
         const vertexName = document.getElementById("vertex").value.trim();
         if (
           vertexName &&
@@ -156,24 +152,28 @@
         drawGraph();
       }
 
-      function addEdge() {
+      async function addEdge() {
         const startVertex = document.getElementById("startVertex").value.trim();
         const endVertex = document.getElementById("endVertex").value.trim();
         const weight = +document.getElementById("weight").value.trim();
 
-        if (startVertex && endVertex && (weight > 0) && startVertex !== endVertex) {
-          const sourceNode = graphData.nodes.find((node) => node.id === startVertex);
-          const targetNode = graphData.nodes.find((node) => node.id === endVertex);
-
-          if (sourceNode && targetNode) {
-            graphData.links.push({
-              source: startVertex,
-              target: endVertex,
-              weight: weight,
-            });
-          } else {
-            console.error("One or both vertices do not exist in the graph");
-          }
+        if (
+          startVertex &&
+          endVertex &&
+          weight > 0 &&
+          startVertex !== endVertex
+        ) {
+          const sourceNode = graphData.nodes.find(
+            (node) => node.id === startVertex
+          );
+          const targetNode = graphData.nodes.find(
+            (node) => node.id === endVertex
+          );
+          graphData.links.push({
+            source: sourceNode,
+            target: targetNode,
+            weight: weight,
+          });
         }
         document.getElementById("startVertex").value = "";
         document.getElementById("endVertex").value = "";
@@ -182,7 +182,7 @@
         drawGraph();
       }
 
-      function drawGraph(data = graphData) {
+      async function drawGraph(data = graphData) {
         d3.select("#graph").selectAll("*").remove();
 
         const svg = d3
@@ -200,8 +200,9 @@
               .id((d) => d.id)
               .distance(100)
           )
-          .force("charge", d3.forceManyBody().strength(-100))
-          .force("center", d3.forceCenter(width / 2, height / 2));
+          .force("charge", d3.forceManyBody().strength(-200))
+          .force("center", d3.forceCenter(width / 2, height / 2))
+          .force("collision", d3.forceCollide().radius(10));
 
         const links = svg
           .append("g")
@@ -247,6 +248,11 @@
           .text((d) => d.weight);
 
         simulation.on("tick", () => {
+          data.nodes.forEach(function (d) {
+            d.x = Math.max(50, Math.min(width - 50, d.x));
+            d.y = Math.max(50, Math.min(height - 50, d.y));
+          });
+
           links
             .attr("x1", (d) => d.source.x)
             .attr("y1", (d) => d.source.y)
