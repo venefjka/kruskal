@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kruskal Algorithm</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        background-color: #f4f4f4;
+      }
+      h1 {
+        color: #333;
+      }
+      .container {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 20px;
+    }
+      form {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 20px;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+      }
+      label {
+        margin: 5px 0;
+        font-weight: bold;
+      }
+      input,
+      button {
+        margin: 5px 0;
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+        width: 200px;
+        box-sizing: border-box;
+      }
+      button {
+        cursor: pointer;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        transition: background-color 0.3s;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      svg {
+        border: 1px solid #ddd;
+        background-color: rgb(255, 255, 255);
+        margin-top: 20px;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+      }
+      .node text {
+        pointer-events: none;
+        font-size: 12px;
+        font-family: Arial, sans-serif;
+      }
+      .link text {
+        pointer-events: none;
+        font-size: 10px;
+        font-family: Arial, sans-serif;
+        fill: #555;
+      }
+      #graph {
+        margin-top: 20px;
+        width: 100%;
+        max-width: 750px;
+        display: flex;
+        justify-content: center;
+      }
+      hr {
+        width: 100%;
+        margin: 15px 0px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 style="align-self: center;">Алгоритм Краскала</h1>
+    <div class="container">
+      <form id="graphForm">
+        <label for="vertex">Название вершины:</label>
+        <input type="text" id="vertex" name="vertex" />
+        <button type="button" onclick="addVertex()">Добавить вершину</button>
+        <hr>
+        <label>Начальная вершина:</label>
+        <input type="text" id="startVertex" name="startVertex" required />
+        <label>Конечная вершина:</label>
+        <input type="text" id="endVertex" name="endVertex" required />
+        <label>Вес:</label>
+        <input type="number" id="weight" name="weight" required />
+        <button type="button" onclick="addEdge()"> 
+          Добавить ребро 
+        </button>
+        <hr>
+        <button type="button" onclick="applyKruskal()">
+          Применить алгоритм
+        </button>
+        <button type="button" onclick="drawGraph()">
+          Показать граф
+        </button>
+      </form>
+
+      <div id="graph"></div>
+    </div>
+
+    <script type="module">
+      import DisjointSet from "./src/DisjointSet.js";
+      import Graph from "./src/Graph.js";
+      import kruskal from "./src/kruskal.js";
+
+      window.DisjointSet = DisjointSet;
+      window.Graph = Graph;
+      window.kruskal = kruskal;
+    </script>
+
+    <script>
+      let graphData = {
+        nodes: [],
+        links: [],
+      };
+
+      let simulation;
+      const width = 600;
+      const height = 500;
+
+      function getRandomPosition(dimension) {
+        return Math.random() * dimension;
+      }
+
+      function addVertex() {
+        const vertexName = document.getElementById("vertex").value.trim();
+        if (
+          vertexName &&
+          !graphData.nodes.find((node) => node.id === vertexName)
+        ) {
+          graphData.nodes.push({
+            id: vertexName,
+            x: getRandomPosition(width),
+            y: getRandomPosition(height),
+          });
+        }
+        document.getElementById("vertex").value = "";
+        console.log("Вершина добавлена:", graphData.nodes);
+        drawGraph();
+      }
+
+      function addEdge() {
+        const startVertex = document.getElementById("startVertex").value.trim();
+        const endVertex = document.getElementById("endVertex").value.trim();
+        const weight = +document.getElementById("weight").value.trim();
+
+        if (startVertex && endVertex && (weight > 0) && startVertex !== endVertex) {
+          const sourceNode = graphData.nodes.find((node) => node.id === startVertex);
+          const targetNode = graphData.nodes.find((node) => node.id === endVertex);
+
+          if (sourceNode && targetNode) {
+            graphData.links.push({
+              source: startVertex,
+              target: endVertex,
+              weight: weight,
+            });
+          } else {
+            console.error("One or both vertices do not exist in the graph");
+          }
+        }
+        document.getElementById("startVertex").value = "";
+        document.getElementById("endVertex").value = "";
+        document.getElementById("weight").value = "";
+        console.log("Ребро добавлено:", graphData.links);
+        drawGraph();
+      }
+
+      function drawGraph(data = graphData) {
+        d3.select("#graph").selectAll("*").remove();
+
+        const svg = d3
+          .select("#graph")
+          .append("svg")
+          .attr("width", width)
+          .attr("height", height);
+
+        simulation = d3
+          .forceSimulation(data.nodes)
+          .force(
+            "link",
+            d3
+              .forceLink(data.links)
+              .id((d) => d.id)
+              .distance(100)
+          )
+          .force("charge", d3.forceManyBody().strength(-100))
+          .force("center", d3.forceCenter(width / 2, height / 2));
+
+        const links = svg
+          .append("g")
+          .attr("class", "links")
+          .selectAll("line")
+          .data(data.links)
+          .enter()
+          .append("line")
+          .attr("stroke", (d) => (data === graphData ? "#999" : "#32CD32"))
+          .attr("stroke-width", (d) => Math.sqrt(d.weight));
+
+        const nodes = svg
+          .append("g")
+          .attr("class", "nodes")
+          .selectAll("circle")
+          .data(data.nodes)
+          .enter()
+          .append("circle")
+          .attr("r", 10)
+          .attr("fill", "#007bff");
+
+        nodes.append("title").text((d) => d.id);
+
+        const nodeTexts = svg
+          .append("g")
+          .attr("class", "node-texts")
+          .selectAll("text")
+          .data(data.nodes)
+          .enter()
+          .append("text")
+          .attr("dy", -15)
+          .text((d) => d.id);
+
+        const linkTexts = svg
+          .append("g")
+          .attr("class", "link-texts")
+          .selectAll("text")
+          .data(data.links)
+          .enter()
+          .append("text")
+          .attr("dy", 10)
+          .attr("text-anchor", "middle")
+          .text((d) => d.weight);
+
+        simulation.on("tick", () => {
+          links
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+
+          nodes.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+
+          nodeTexts.attr("x", (d) => d.x).attr("y", (d) => d.y);
+
+          linkTexts
+            .attr("x", (d) => (d.source.x + d.target.x) / 2)
+            .attr("y", (d) => (d.source.y + d.target.y) / 2);
+        });
+
+        simulation.alpha(0.3).restart();
+      }
+
+      drawGraph();
+      async function applyKruskal() {
+        console.log("Отправляемые данные:", JSON.stringify(graphData));
+
+        const response = await fetch("http://localhost:3000/kruskal", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(graphData),
+        });
+
+        const mstData = await response.json();
+        console.log("MST:", mstData);
+        drawGraph(mstData);
+      }
+    </script>
+  </body>
+</html>
